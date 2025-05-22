@@ -31,6 +31,10 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 pygame.time.set_timer(pygame.USEREVENT, ENEMY_SPAWN_INTERVAL)
 
+font_large = pygame.font.SysFont(None, 64)
+font_medium = pygame.font.SysFont(None, 32)
+font_small = pygame.font.SysFont(None, 16)
+
 # === PLAYER CLASS ===
 class Player(pygame.sprite.Sprite):
     def __init__(self):
@@ -212,7 +216,64 @@ bullets = pygame.sprite.Group()
 grenades = pygame.sprite.Group()
 enemies = pygame.sprite.Group()
 
-# === MAIN LOOP ===
+# === MODULAR FUNCTIONS ===
+def create_HUD(screen, player):
+    bar_wid = 200
+    bar_len = 20
+    position_x = 20
+    postion_y = 20
+    hp_ratio = player.hp / player.max_hp
+    pygame.draw.rect(screen, RED, (position_x, postion_y, bar_wid, bar_len))
+    pygame.draw.rect(screen, GREEN, (position_x, postion_y, bar_wid * hp_ratio, bar_len))
+
+    for i in range(player.available_dodge):
+        color = BLUE if i  < player.dodge_gauge else BLACK
+        pygame.draw.rect(screen, color, (position_x + i * 25, postion_y + 30, 20, 20))
+
+def create_text(font_size, color, string, pos_x, pos_y):
+    text = font_size.render(string, True, color) #2nd param for AA, can be a universal constant s.t. it is configurable and makes everything uniform
+    text_rect = text.get_rect(center=(pos_x,pos_y))
+    return text, text_rect
+
+# === MAIN LOOPS ===
+def title_screen():
+    title_text, title_rect = create_text(font_large, RED, "GAME", 400, 100)
+
+    sub_texts = ["play", "settings", "quit"]
+    selected = 0
+    spacing = 100
+    pos_y = 125
+    start_x = 400 - spacing
+
+    while True:
+        screen.fill(BLACK)
+        screen.blit(title_text, title_rect)
+
+        for i in range(3):
+            color = RED if i == selected else WHITE
+            pos_x = start_x + i * spacing
+            text, rect = create_text(font_medium, color, sub_texts[i], pos_x, pos_y)
+            screen.blit(text, rect)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+                elif event.key == pygame.K_a:
+                    selected = (selected - 1) % 3
+                elif event.key == pygame.K_d:
+                    selected = (selected + 1) % 3
+                elif event.key == pygame.K_SPACE:
+                    return sub_texts[selected]
+
+        pygame.display.flip()
+        clock.tick(int(FPS))
+
+
 def main():
     global all_sprites
     player = Player()
@@ -260,19 +321,7 @@ def main():
 
         screen.fill(BLACK)
         all_sprites.draw(screen)
-
-        bar_wid = 200
-        bar_len = 20
-        position_x = 20
-        postion_y = 20
-        hp_ratio = player.hp / player.max_hp
-
-        pygame.draw.rect(screen, RED, (position_x, postion_y, bar_wid, bar_len))
-        pygame.draw.rect(screen, GREEN, (position_x, postion_y, bar_wid * hp_ratio, bar_len))
-
-        for i in range(player.available_dodge):
-            color = BLUE if i  < player.dodge_gauge else (50,50,50)
-            pygame.draw.rect(screen, color, (position_x + i * 25, postion_y + 30, 20, 20))
+        create_HUD(screen, player)
 
         if player.aiming:
             # Trajectory preview
@@ -292,4 +341,11 @@ def main():
         clock.tick(int(FPS * time_scale))
 
 if __name__ == "__main__":
-    main()
+    choice = title_screen()
+    if choice == "play":
+        main()
+    elif choice == "settings":
+        pass # TODO: adjusting the difficuly lang ig;
+    elif choice == "quit":
+        pygame.quit()
+        sys.exit()
