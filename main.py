@@ -6,8 +6,13 @@ import random
 # === CONFIGURABLE CONSTANTS ===
 WIDTH, HEIGHT = 800, 600
 FPS = 60
-CENTER_FORCE = 0.05
-ENEMY_SPAWN_INTERVAL = 1000  # milliseconds
+CENTER_FORCE = 0.001
+MOVEMENT_PADDING = 25
+MAX_HP = 100
+MAX_DODGE = 2
+DODGE_COOLDOWN = 1000 # milliseconds
+ENEMY_SPAWN_INTERVAL = 1000  
+MAX_IFRAMES = 1000
 ENEMY_SPEED = 1
 BULLET_SPEED = 3
 GRENADE_SPEED = 10
@@ -30,6 +35,24 @@ pygame.time.set_timer(pygame.USEREVENT, ENEMY_SPAWN_INTERVAL)
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
+
+        # health points
+        self.hp = MAX_HP
+        self.max_hp = MAX_HP
+
+        # for dodging
+        self.dodge_step = 10
+        self.available_dodge = MAX_DODGE
+        self.dodge_gauge = MAX_DODGE
+        self.dodge_speed = 0.6
+        self.dodge_delay = 200 # milliseconds (para dili ma spam ang dodge instantly, murag delay before mo press again)
+        self.last_dodged = 0
+
+        #inviciblity frames when dodging
+        self.max_iframes = MAX_IFRAMES # milliseconds
+        self.initial_iframe = 0
+        self.i_status = False
+
         self.dragging = False
         self.drag_start = None
         self.current_mouse = None
@@ -38,16 +61,45 @@ class Player(pygame.sprite.Sprite):
         self.base_y = HEIGHT // 2
         self.offset_y = 0
         self.vel_y = 0
-        self.dodge_speed = 0.6
         self.center_pull_strength = CENTER_FORCE
         self.rect = self.image.get_rect(center=(WIDTH // 2, self.base_y))
         self.aiming = False
         self.aim_angle = -90  # Degrees
 
+    def dodge(self):
+        keys = pygame.key.get_pressed()
+        current_tick = pygame.time.get_ticks()
+
+        if self.dodge_gauge > 0 and (current_tick - self.last_dodged >= self.dodge_delay):
+            moved = False
+            if keys[pygame.K_a]:
+                self.vel_y -= self.dodge_step
+                moved = True
+            elif keys[pygame.K_d]:
+                self.vel_y += self.dodge_step
+                moved = True
+            if moved:
+                max_upward = -self.base_y + self.rect.height // 2 + MOVEMENT_PADDING
+                max_downwards = HEIGHT - self.base_y - self.rect.height // 2 - MOVEMENT_PADDING
+                self.offset_y = max(min(self.offset_y, max_downwards), max_upward)
+
+                self.dodge_gauge -= 1
+                self.last_dodged = current_tick
+                self.i_status = True
+                self.initial_iframe = current_tick
+
+    
+    def restore_dodge_counter(self):
+        cc = DODGE_COOLDOWN
+        if self.dodge_gauge < self.available_dodge:
+            if (pygame.time.get_ticks() - self.last_dodged > cc):
+                self.dodge_gauge += 1
+                self.last_dodged = pygame.time.get_ticks()
+    
     def update(self, keys):
-        if keys[pygame.K_UP]:
+        if keys[pygame.K_a]:
             self.vel_y -= self.dodge_speed
-        elif keys[pygame.K_DOWN]:
+        elif keys[pygame.K_d]:
             self.vel_y += self.dodge_speed
         else:
             self.vel_y -= self.offset_y * self.center_pull_strength
@@ -55,11 +107,28 @@ class Player(pygame.sprite.Sprite):
         self.offset_y += self.vel_y
         self.vel_y *= 0.9
         self.rect.center = (WIDTH // 2, self.base_y + self.offset_y)
+
+        max_upward = -self.base_y + self.rect.height // 2 + MOVEMENT_PADDING
+        max_downwards = HEIGHT - self.base_y - self.rect.height // 2 - MOVEMENT_PADDING
+        self.offset_y = max(min(self.offset_y, max_downwards), max_upward)
+
         mouse_x, mouse_y = pygame.mouse.get_pos()
         dx = mouse_x - self.rect.centerx
         dy = mouse_y - self.rect.centery
         self.aim_angle = math.degrees(math.atan2(dy, dx))
 
+        if self.i_status:
+            elapsed = pygame.time.get_ticks() - self.initial_iframe
+            if elapsed > self.max_iframes:
+                self.i_status = False
+
+    def take_dmg(self, amount):
+        if self.i_status:
+            return
+        self.hp -= amount
+        if self.hp <= 0:
+            print("the guy is dead. we need to something")
+            self.hp = 0
 
 # === BULLET CLASS ===
 class Bullet(pygame.sprite.Sprite):
@@ -162,27 +231,48 @@ def main():
                 enemy = Enemy(player)
                 all_sprites.add(enemy)
                 enemies.add(enemy)
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
                     player.aiming = True
-            elif event.type == pygame.KEYUP:
-                if event.key == pygame.K_SPACE:
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
                     player.aiming = False
                     mouse_pos = pygame.mouse.get_pos()
-                    grenade = Grenade(player.rect.center, math.degrees(math.atan2(mouse_pos[1] - player.rect.centery,
-                                                                                mouse_pos[0] - player.rect.centerx)))
+                    grenade = Grenade(player.rect.center, math.degrees(math.atan2(mouse_pos[1] - player.rect.centery, mouse_pos[0] - player.rect.centerx)))
                     all_sprites.add(grenade)
                     grenades.add(grenade)
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    player.dodge()
 
         player.update(keys)
+
         bullets.update()
+        hit_bullets = pygame.sprite.spritecollide(player, bullets, True)
+        for bullet in hit_bullets:
+            player.take_dmg(10)
+
+        player.restore_dodge_counter()
         grenades.update()
         enemies.update()
 
-        time_scale = 0.4 if player.aiming else 1.0
+        time_scale = 0.6 if player.aiming else 1.0
 
         screen.fill(BLACK)
         all_sprites.draw(screen)
+
+        bar_wid = 200
+        bar_len = 20
+        position_x = 20
+        postion_y = 20
+        hp_ratio = player.hp / player.max_hp
+
+        pygame.draw.rect(screen, RED, (position_x, postion_y, bar_wid, bar_len))
+        pygame.draw.rect(screen, GREEN, (position_x, postion_y, bar_wid * hp_ratio, bar_len))
+
+        for i in range(player.available_dodge):
+            color = BLUE if i  < player.dodge_gauge else (50,50,50)
+            pygame.draw.rect(screen, color, (position_x + i * 25, postion_y + 30, 20, 20))
 
         if player.aiming:
             # Trajectory preview
