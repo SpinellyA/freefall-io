@@ -170,9 +170,55 @@ class Bullet(pygame.sprite.Sprite):
             self.rect.bottom < 0 or self.rect.top > HEIGHT):
             self.kill()
 
+class Explosion(pygame.sprite.Sprite):
+    def __init__(self, pos, player):
+        super().__init__()
+        self.pos = pygame.math.Vector2(pos)
+        self.radius = 0
+        self.max_radius = 80
+        self.lifetime = 30
+        self.frame = 0
+        self.image = pygame.Surface((self.max_radius * 2, self.max_radius * 2), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(center=pos)
+        self.hit_enemies = set()
+        self.has_pushed = set()  # new
+        self.player = player
+
+    def update(self, time_scale):
+        self.frame += 1 * time_scale
+        self.radius = int(self.max_radius * (self.frame / self.lifetime))
+        self.image.fill((0, 0, 0, 0))
+        pygame.draw.circle(self.image, (255, 100, 100, 150), (self.max_radius, self.max_radius), self.radius)
+        self.rect = self.image.get_rect(center=self.pos)
+        if self.frame >= self.lifetime:
+            self.kill()
+
+        for enemy in enemies:
+            if enemy not in self.hit_enemies:
+                if self.pos.distance_to(enemy.rect.center) < self.radius:
+                    enemy.kill()
+                    self.hit_enemies.add(enemy)
+
+            # Push enemies
+            if enemy not in self.has_pushed and self.pos.distance_to(enemy.rect.center) < self.radius:
+                direction = pygame.math.Vector2(enemy.rect.center) - self.pos
+                if direction.length() > 0:
+                    direction = direction.normalize()
+                enemy.rect.x += int(direction.x * 10)
+                enemy.rect.y += int(direction.y * 10)
+                self.has_pushed.add(enemy)
+        # Push player
+        if self.pos.distance_to(self.player.rect.center) < self.radius:
+            direction = pygame.math.Vector2(self.player.rect.center) - self.pos
+            if direction.length() > 0:
+                direction = direction.normalize()
+            self.player.vel_y += direction.y * 2  # subtle knock
+
+
+
 # === GRENADE CLASS ===
 class Grenade(pygame.sprite.Sprite):
-    def __init__(self, pos, angle_deg, power=GRENADE_SPEED):
+    def __init__(self, pos, angle_deg, player, power=GRENADE_SPEED):
         super().__init__()
         self.image = pygame.Surface((10, 10))
         self.image.fill(GREEN)
@@ -181,14 +227,29 @@ class Grenade(pygame.sprite.Sprite):
         rad = math.radians(angle_deg)
         self.vel_x = power * math.cos(rad)
         self.vel_y = power * math.sin(rad)
+        self.player = player
 
     def update(self, time_scale):
         self.vel_y += GRAVITY * time_scale
         self.rect.x += int(self.vel_x * time_scale)
         self.rect.y += int(self.vel_y * time_scale)
 
+        hit_enemies = pygame.sprite.spritecollide(self, enemies, False)
+        if hit_enemies:
+            for enemy in hit_enemies:
+                enemy.kill() 
+            # explosion = Explosion(self.rect.center)
+            # all_sprites.add(explosion)
+            # explosions.add(explosion)
+            self.kill()
+            return
+
+        # Collision with ground
         if self.rect.top > HEIGHT:
-            self.kill()  # TODO: Replace with explosion effect
+            # explosion = Explosion(self.rect.center)
+            #all_sprites.add(explosion)
+            # explosions.add(explosion)
+            self.kill()
 
 # === ENEMY CLASS ===
 class Enemy(pygame.sprite.Sprite):
@@ -222,12 +283,14 @@ class Enemy(pygame.sprite.Sprite):
             bullet = Bullet(self.rect.center, self.player.rect.center)
             all_sprites.add(bullet)
             bullets.add(bullet)
+
             
 # === GLOBAL GROUPS ===
 all_sprites = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 grenades = pygame.sprite.Group()
 enemies = pygame.sprite.Group()
+explosions = pygame.sprite.Group()
 
 # === MODULAR FUNCTIONS ===
 def create_HUD(screen, player):
@@ -310,18 +373,18 @@ def main():
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 player.aiming = True
                 player.dragging = True
-                player.drag_start = pygame.mouse.get_pos()
             elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                 player.aiming = False
                 if player.dragging:
                     dx = pygame.mouse.get_pos()[0] - player.rect.centerx
                     dy = pygame.mouse.get_pos()[1] - player.rect.centery
                     angle = math.degrees(math.atan2(dy, dx))
-                    grenade = Grenade(player.rect.center, angle)
+                    grenade = Grenade(player.rect.center, angle, player)
                     all_sprites.add(grenade)
                     grenades.add(grenade)
                 player.dragging = False
                 player.drag_start = None
+                player.current_mouse = None
                 player.current_mouse = None
 
         time_scale = 0.4 if player.aiming else 1.0
