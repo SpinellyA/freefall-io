@@ -313,6 +313,13 @@ def create_text(font_size, color, string, pos_x, pos_y):
     text_rect = text.get_rect(center=(pos_x,pos_y))
     return text, text_rect
 
+def load_titlebg_screen():
+    frames = []
+    for i in range(15):
+        image = pygame.image.load(f"assets/art/title_screen/{i:03}.png").convert()
+        frames.append(pygame.transform.scale(image, screen.get_size()))
+    return frames
+
 # === MAIN LOOPS ===
 def title_screen():
     title_text, title_rect = create_text(font_large, RED, "GAME", 400, 100)
@@ -323,8 +330,14 @@ def title_screen():
     pos_y = 125
     start_x = 400 - spacing
 
+    bg_frames = load_titlebg_screen()
+    frame_index = 0
+
     while True:
-        screen.fill(BLACK)
+        screen.blit(bg_frames[int(frame_index)], (0,0))
+        frame_index += 0.09 # adjusts speed
+        if frame_index >= 15:
+            frame_index = 0
         screen.blit(title_text, title_rect)
 
         for i in range(3):
