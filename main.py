@@ -295,18 +295,22 @@ explosions = pygame.sprite.Group()
 # === MODULAR FUNCTIONS ===
 def create_HUD(screen, player):
     # Draw health bar
-    bar_wid = 200
-    bar_len = 20
+    width = 200
+    height = 15
     position_x = 20
     postion_y = 20
+
+    hud_image = pygame.image.load("forked/assets/art/hud.png").convert_alpha()
+
     hp_ratio = player.hp / player.max_hp
-    pygame.draw.rect(screen, RED, (position_x, postion_y, bar_wid, bar_len))
-    pygame.draw.rect(screen, GREEN, (position_x, postion_y, bar_wid * hp_ratio, bar_len))
+    pygame.draw.rect(screen, RED, (position_x, postion_y, width, height))
+    pygame.draw.rect(screen, GREEN, (position_x, postion_y, width * hp_ratio, height))
 
     # Draw dodge bar
     for i in range(player.available_dodge):
         color = BLUE if i  < player.dodge_gauge else BLACK
-        pygame.draw.rect(screen, color, (position_x + i * 25, postion_y + 30, 20, 20))
+        pygame.draw.rect(screen, color, (position_x + i * 20, postion_y + 20, 15, 15))
+    screen.blit(hud_image, (10, 10))
 
 def create_text(font_size, color, string, pos_x, pos_y):
     text = font_size.render(string, True, color) #2nd param for AA, can be a universal constant s.t. it is configurable and makes everything uniform
@@ -315,8 +319,8 @@ def create_text(font_size, color, string, pos_x, pos_y):
 
 def load_titlebg_screen():
     frames = []
-    for i in range(15):
-        image = pygame.image.load(f"assets/art/title_screen/{i:03}.png").convert()
+    for i in range(16):
+        image = pygame.image.load(f"forked/assets/art/title_screen/{i:03}.png").convert()
         frames.append(pygame.transform.scale(image, screen.get_size()))
     return frames
 
@@ -336,7 +340,7 @@ def title_screen():
     while True:
         screen.blit(bg_frames[int(frame_index)], (0,0))
         frame_index += 0.09 # adjusts speed
-        if frame_index >= 15:
+        if frame_index >= 16:
             frame_index = 0
         screen.blit(title_text, title_rect)
 
