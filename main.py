@@ -18,6 +18,93 @@ BULLET_SPEED = 3
 GRENADE_SPEED = 10
 GRAVITY = 0.3
 
+
+
+#SCORES
+score = 0
+try:
+    with open("highscore.txt", "r") as file:
+        high_score = int(file.read())
+except:
+    high_score = 0
+
+#DIFFICULTY LEVELS
+difficulty_levels = ["Easy", "Normal", "Hard"]
+difficulty_speeds = {"Easy": 0.75, "Normal": 1.0, "Hard": 1.75}
+volume_levels = ["Mute", "Low", "Normal", "High"]
+
+#SPAWN RATE
+difficulty_spawn_multipliers = {
+    "Easy": 0.5,
+    "Normal": 1.0,
+    "Hard": 1.25
+}
+
+#CURRENT LEVELS
+current_difficulty = "Normal"
+current_volume = "Normal"
+
+
+def settings_menu():
+    global current_difficulty, current_volume
+
+    options = ["Difficulty", "Volume", "Back"]
+    selected_option = 0
+    difficulty_index = difficulty_levels.index(current_difficulty)
+    volume_index = volume_levels.index(current_volume)
+
+    while True:
+        screen.fill(BLACK)
+        title_text, title_rect = create_text(font_large, RED, "SETTINGS", WIDTH // 2, 80)
+        screen.blit(title_text, title_rect)
+
+        for i, option in enumerate(options):
+            color = RED if i == selected_option else WHITE
+            y_pos = 200 + i * 60
+
+            if option == "Difficulty":
+                text_str = f"Difficulty: {difficulty_levels[difficulty_index]}"
+            elif option == "Volume":
+                text_str = f"Volume: {volume_levels[volume_index]}"
+            else:
+                text_str = option
+
+            text, rect = create_text(font_medium, color, text_str, WIDTH // 2, y_pos)
+            screen.blit(text, rect)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return  # Back to title screen
+                elif event.key in (pygame.K_a, pygame.K_LEFT):
+                    selected_option = (selected_option - 1) % len(options)
+                elif event.key in (pygame.K_d, pygame.K_RIGHT):
+                    selected_option = (selected_option + 1) % len(options)
+                elif event.key in (pygame.K_w, pygame.K_UP):
+                    if selected_option == 0:  # DIFFICULTY OPTIOANFOASNF 
+                        difficulty_index = (difficulty_index - 1) % len(difficulty_levels)
+                        current_difficulty = difficulty_levels[difficulty_index]
+                    elif selected_option == 1:  # VOLUME
+                        volume_index = (volume_index - 1) % len(volume_levels)
+                        current_volume = volume_levels[volume_index]
+                elif event.key in (pygame.K_s, pygame.K_DOWN):
+                    if selected_option == 0:  # DIFFICULTY PARIN
+                        difficulty_index = (difficulty_index + 1) % len(difficulty_levels)
+                        current_difficulty = difficulty_levels[difficulty_index]
+                    elif selected_option == 1:  # VOLUME
+                        volume_index = (volume_index + 1) % len(volume_levels)
+                        current_volume = volume_levels[volume_index]
+                elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
+                    if options[selected_option] == "Back":
+                        return
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
 # === COLORS ===
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -26,15 +113,23 @@ BLUE = (0, 0, 255)
 GREEN = (0, 255, 0)
 SKY_COLOR = (135, 206, 235)
 
+
 # === INIT ===
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
-pygame.time.set_timer(pygame.USEREVENT, ENEMY_SPAWN_INTERVAL)
+#ORIGINAL SPAWN INTERVAL pygame.time.set_timer(pygame.USEREVENT, ENEMY_SPAWN_INTERVAL)
+adjusted_spawn_interval = int(ENEMY_SPAWN_INTERVAL / difficulty_spawn_multipliers[current_difficulty])
+pygame.time.set_timer(pygame.USEREVENT, adjusted_spawn_interval)
+
 
 font_large = pygame.font.SysFont(None, 64)
 font_medium = pygame.font.SysFont(None, 32)
 font_small = pygame.font.SysFont(None, 16)
+
+#LOADING BACGKROUND IMAGE
+background_img = pygame.image.load("assets/art/gameproper.png").convert()
+
 
 def create_vignette_surface(width, height):
     vignette = pygame.Surface((width, height), pygame.SRCALPHA)
@@ -54,8 +149,22 @@ vignette = create_vignette_surface(WIDTH, HEIGHT)
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = pygame.Surface((40, 40))
-        self.image.fill(WHITE)
+
+        #ORIGINAL PLAYER CHAR
+        #self.image = pygame.Surface((40, 40))
+        #self.image.fill(WHITE)
+
+        #NEW AHSDBHABSDHBASHFB
+        original_image = pygame.image.load("assets/player/mainchar.png").convert_alpha()
+        # MAXIMUM SIZE OF THE CHARACTER
+        max_size = 100
+        scale_ratio = min(max_size / original_image.get_width(), max_size / original_image.get_height())
+        new_width = int(original_image.get_width() * scale_ratio)
+        new_height = int(original_image.get_height() * scale_ratio)
+        self.original_image = pygame.transform.smoothscale(original_image, (new_width, new_height))
+        self.image = self.original_image
+
+
         self.base_y = HEIGHT // 2
         self.offset_y = 0
         self.vel_y = 0
@@ -108,9 +217,9 @@ class Player(pygame.sprite.Sprite):
 
     def update(self, keys, time_scale):
         if not self.aiming:
-            if keys[pygame.K_UP]:
+            if keys[pygame.K_UP] or keys[pygame.K_w]:
                 self.vel_y -= self.dodge_speed
-            elif keys[pygame.K_DOWN]:
+            elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
                 self.vel_y += self.dodge_speed
         self.dodge(keys)
         self.restore_dodge_counter()
@@ -125,7 +234,16 @@ class Player(pygame.sprite.Sprite):
         max_down = HEIGHT - self.base_y - self.rect.height // 2 - MOVEMENT_PADDING
         self.offset_y = max(min(self.offset_y, max_down), max_up)
 
-        self.rect.center = (WIDTH // 2, self.base_y + self.offset_y)
+
+        #CENTER OF MAIN CHARACTER
+        #self.rect.center = (WIDTH // 2, self.base_y + self.offset_y)
+
+        #NEW CHARACTER MOTION
+        # Rotate the sprite to face the aim angle
+        rotated_image = pygame.transform.rotate(self.original_image, -self.aim_angle - 90)
+        self.image = rotated_image
+        self.rect = self.image.get_rect(center=(WIDTH // 2, self.base_y + self.offset_y))
+
         mouse_x, mouse_y = pygame.mouse.get_pos()
         dx = mouse_x - self.rect.centerx
         dy = mouse_y - self.rect.centery
@@ -146,6 +264,12 @@ class Player(pygame.sprite.Sprite):
         if self.hp <= 0:
             print("the guy is dead. we need to something")
             self.hp = 0
+            global score, high_score
+            if score > high_score:
+                high_score = score
+                with open("highscore.txt", "w") as file:
+                    file.write(str(high_score))
+            score = 0
 
 # === BULLET CLASS ===
 class Bullet(pygame.sprite.Sprite):
@@ -198,6 +322,7 @@ class Explosion(pygame.sprite.Sprite):
                 if self.pos.distance_to(enemy.rect.center) < self.radius:
                     enemy.kill()
                     self.hit_enemies.add(enemy)
+            
 
             # Push enemies
             if enemy not in self.has_pushed and self.pos.distance_to(enemy.rect.center) < self.radius:
@@ -237,7 +362,9 @@ class Grenade(pygame.sprite.Sprite):
         hit_enemies = pygame.sprite.spritecollide(self, enemies, False)
         if hit_enemies:
             for enemy in hit_enemies:
-                enemy.kill() 
+                enemy.kill()
+            global score
+            score += 1
             # explosion = Explosion(self.rect.center)
             # all_sprites.add(explosion)
             # explosions.add(explosion)
@@ -255,9 +382,23 @@ class Grenade(pygame.sprite.Sprite):
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, player):
         super().__init__()
+
+        #RED SQUARE 
         self.image = pygame.Surface((30, 30))
         self.image.fill(RED)
         self.rect = self.image.get_rect()
+
+        #UPDATED SPRITE ASFDJANSJDNASJDNKASNFJADNIFJANDIJGNADIJNGIJADNGFIJAND
+        original_image = pygame.image.load("assets/enemy/enemy1.png").convert_alpha()
+        max_size = 80  # smaller than player max_size 100
+        scale_ratio = min(max_size / original_image.get_width(), max_size / original_image.get_height())
+        new_width = int(original_image.get_width() * scale_ratio)
+        new_height = int(original_image.get_height() * scale_ratio)
+        self.original_image = pygame.transform.smoothscale(original_image, (new_width, new_height))
+        self.image = self.original_image
+        self.rect = self.image.get_rect()
+
+
         self.player = player
         margin = 50
         safe_zone = 100
@@ -276,6 +417,17 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.y += self.vel_y * time_scale
         if self.rect.bottom < 0:
             self.kill()
+
+
+        #MAKE THEM LOOK AT YOUUUUUu
+        dx = self.player.rect.centerx - self.rect.centerx
+        dy = self.player.rect.centery - self.rect.centery
+        angle = math.degrees(math.atan2(dy, dx))
+
+        rotated_image = pygame.transform.rotate(self.original_image, -angle - 90)
+        old_center = self.rect.center
+        self.image = rotated_image
+        self.rect = self.image.get_rect(center=old_center)
 
         current_time = pygame.time.get_ticks()
         if current_time - self.last_shot_time >= self.shoot_cooldown:
@@ -312,6 +464,14 @@ def create_HUD(screen, player):
         pygame.draw.rect(screen, color, (position_x + i * 20, postion_y + 20, 15, 15))
     screen.blit(hud_image, (10, 10))
 
+    # SCORE AND HIGH SCORE
+    score_text, score_rect = create_text(font_medium, WHITE, f"Score: {score}", WIDTH - 150, 20)
+    screen.blit(score_text, score_rect)
+
+    high_score_text, high_score_rect = create_text(font_medium, WHITE, f"High Score: {high_score}", WIDTH - 150, 50)
+    screen.blit(high_score_text, high_score_rect)
+
+
 def create_text(font_size, color, string, pos_x, pos_y):
     text = font_size.render(string, True, color) #2nd param for AA, can be a universal constant s.t. it is configurable and makes everything uniform
     text_rect = text.get_rect(center=(pos_x,pos_y))
@@ -323,6 +483,12 @@ def load_titlebg_screen():
         image = pygame.image.load(f"forked/assets/art/title_screen/{i:03}.png").convert()
         frames.append(pygame.transform.scale(image, screen.get_size()))
     return frames
+
+
+
+
+
+
 
 # === MAIN LOOPS ===
 def title_screen():
@@ -363,10 +529,21 @@ def title_screen():
                 elif event.key == pygame.K_d:
                     selected = (selected + 1) % 3
                 elif event.key == pygame.K_SPACE:
-                    return sub_texts[selected]
+                    choice = sub_texts[selected]
+                    if choice == "play":
+                        return "play"
+                    elif choice == "settings":
+                        settings_menu()
+                    elif choice == "quit":
+                        pygame.quit()
+                        sys.exit()
 
         pygame.display.flip()
-        clock.tick(int(FPS))
+        clock.tick(FPS)
+
+
+
+
 
 
 def main():
@@ -375,6 +552,7 @@ def main():
     all_sprites.add(player)
 
     time_scale = 1.0
+    background_scroll_y = 0
 
     while True:
         keys = pygame.key.get_pressed()
@@ -404,7 +582,8 @@ def main():
                 player.current_mouse = None
                 player.current_mouse = None
 
-        time_scale = 0.4 if player.aiming else 1.0
+        time_scale = difficulty_speeds[current_difficulty] * (0.4 if player.aiming else 1.0)
+
 
         player.update(keys, time_scale)
         for bullet in bullets:
@@ -419,7 +598,19 @@ def main():
         for bullet in hit_bullets:
             player.take_dmg(10)
 
-        screen.fill(SKY_COLOR)
+        #MOVING BACKGROUNDDDDDDDD
+        background_scroll_y += 2 
+
+
+        if background_scroll_y >= HEIGHT:
+            background_scroll_y = 0
+
+
+        screen.blit(background_img, (0, background_scroll_y))
+        screen.blit(background_img, (0, background_scroll_y - HEIGHT))
+
+#=========================================
+
         all_sprites.draw(screen)
         create_HUD(screen, player)
 
