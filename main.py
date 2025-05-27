@@ -44,67 +44,6 @@ difficulty_spawn_multipliers = {
 current_difficulty = "Normal"
 current_volume = "Normal"
 
-
-def settings_menu():
-    global current_difficulty, current_volume
-
-    options = ["Difficulty", "Volume", "Back"]
-    selected_option = 0
-    difficulty_index = difficulty_levels.index(current_difficulty)
-    volume_index = volume_levels.index(current_volume)
-
-    while True:
-        screen.fill(BLACK)
-        title_text, title_rect = create_text(font_large, RED, "SETTINGS", WIDTH // 2, 80)
-        screen.blit(title_text, title_rect)
-
-        for i, option in enumerate(options):
-            color = RED if i == selected_option else WHITE
-            y_pos = 200 + i * 60
-
-            if option == "Difficulty":
-                text_str = f"Difficulty: {difficulty_levels[difficulty_index]}"
-            elif option == "Volume":
-                text_str = f"Volume: {volume_levels[volume_index]}"
-            else:
-                text_str = option
-
-            text, rect = create_text(font_medium, color, text_str, WIDTH // 2, y_pos)
-            screen.blit(text, rect)
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    return  # Back to title screen
-                elif event.key in (pygame.K_a, pygame.K_LEFT):
-                    selected_option = (selected_option - 1) % len(options)
-                elif event.key in (pygame.K_d, pygame.K_RIGHT):
-                    selected_option = (selected_option + 1) % len(options)
-                elif event.key in (pygame.K_w, pygame.K_UP):
-                    if selected_option == 0:  # DIFFICULTY OPTIOANFOASNF 
-                        difficulty_index = (difficulty_index - 1) % len(difficulty_levels)
-                        current_difficulty = difficulty_levels[difficulty_index]
-                    elif selected_option == 1:  # VOLUME
-                        volume_index = (volume_index - 1) % len(volume_levels)
-                        current_volume = volume_levels[volume_index]
-                elif event.key in (pygame.K_s, pygame.K_DOWN):
-                    if selected_option == 0:  # DIFFICULTY PARIN
-                        difficulty_index = (difficulty_index + 1) % len(difficulty_levels)
-                        current_difficulty = difficulty_levels[difficulty_index]
-                    elif selected_option == 1:  # VOLUME
-                        volume_index = (volume_index + 1) % len(volume_levels)
-                        current_volume = volume_levels[volume_index]
-                elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
-                    if options[selected_option] == "Back":
-                        return
-
-        pygame.display.flip()
-        clock.tick(FPS)
-
-
 # === COLORS ===
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -126,10 +65,6 @@ pygame.time.set_timer(pygame.USEREVENT, adjusted_spawn_interval)
 font_large = pygame.font.SysFont(None, 64)
 font_medium = pygame.font.SysFont(None, 32)
 font_small = pygame.font.SysFont(None, 16)
-
-#LOADING BACGKROUND IMAGE
-background_img = pygame.image.load("assets/art/gameproper.png").convert()
-
 
 def create_vignette_surface(width, height):
     vignette = pygame.Surface((width, height), pygame.SRCALPHA)
@@ -155,7 +90,7 @@ class Player(pygame.sprite.Sprite):
         #self.image.fill(WHITE)
 
         #NEW AHSDBHABSDHBASHFB
-        original_image = pygame.image.load("assets/player/mainchar.png").convert_alpha()
+        original_image = pygame.image.load("forked/assets/player/mainchar.png").convert_alpha()
         # MAXIMUM SIZE OF THE CHARACTER
         max_size = 100
         scale_ratio = min(max_size / original_image.get_width(), max_size / original_image.get_height())
@@ -389,7 +324,7 @@ class Enemy(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
 
         #UPDATED SPRITE ASFDJANSJDNASJDNKASNFJADNIFJANDIJGNADIJNGIJADNGFIJAND
-        original_image = pygame.image.load("assets/enemy/enemy1.png").convert_alpha()
+        original_image = pygame.image.load("forked/assets/enemy/enemy1.png").convert_alpha()
         max_size = 80  # smaller than player max_size 100
         scale_ratio = min(max_size / original_image.get_width(), max_size / original_image.get_height())
         new_width = int(original_image.get_width() * scale_ratio)
@@ -484,11 +419,12 @@ def load_titlebg_screen():
         frames.append(pygame.transform.scale(image, screen.get_size()))
     return frames
 
-
-
-
-
-
+def load_playbg_screen():
+    frames = []
+    for i in reversed(range(6)):
+        image = pygame.image.load(f"forked/assets/art/parallax_bg/{i:03}.png").convert_alpha()
+        frames.append(pygame.transform.scale(image, screen.get_size()))
+    return frames
 
 # === MAIN LOOPS ===
 def title_screen():
@@ -533,7 +469,7 @@ def title_screen():
                     if choice == "play":
                         return "play"
                     elif choice == "settings":
-                        settings_menu()
+                        settings_menu() #change
                     elif choice == "quit":
                         pygame.quit()
                         sys.exit()
@@ -541,10 +477,64 @@ def title_screen():
         pygame.display.flip()
         clock.tick(FPS)
 
+def settings_menu():
+    global current_difficulty, current_volume
 
+    options = ["Difficulty", "Volume", "Back"]
+    selected_option = 0
+    difficulty_index = difficulty_levels.index(current_difficulty)
+    volume_index = volume_levels.index(current_volume)
 
+    while True:
+        screen.fill(BLACK)
+        title_text, title_rect = create_text(font_large, RED, "SETTINGS", WIDTH // 2, 80)
+        screen.blit(title_text, title_rect)
 
+        for i, option in enumerate(options):
+            color = RED if i == selected_option else WHITE
+            y_pos = 200 + i * 60
 
+            if option == "Difficulty":
+                text_str = f"Difficulty: {difficulty_levels[difficulty_index]}"
+            elif option == "Volume":
+                text_str = f"Volume: {volume_levels[volume_index]}"
+            else:
+                text_str = option
+
+            text, rect = create_text(font_medium, color, text_str, WIDTH // 2, y_pos)
+            screen.blit(text, rect)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return  # Back to title screen
+                elif event.key in (pygame.K_a, pygame.K_LEFT):
+                    selected_option = (selected_option - 1) % len(options)
+                elif event.key in (pygame.K_d, pygame.K_RIGHT):
+                    selected_option = (selected_option + 1) % len(options)
+                elif event.key in (pygame.K_w, pygame.K_UP):
+                    if selected_option == 0:  # DIFFICULTY OPTIOANFOASNF 
+                        difficulty_index = (difficulty_index - 1) % len(difficulty_levels)
+                        current_difficulty = difficulty_levels[difficulty_index]
+                    elif selected_option == 1:  # VOLUME
+                        volume_index = (volume_index - 1) % len(volume_levels)
+                        current_volume = volume_levels[volume_index]
+                elif event.key in (pygame.K_s, pygame.K_DOWN):
+                    if selected_option == 0:  # DIFFICULTY PARIN
+                        difficulty_index = (difficulty_index + 1) % len(difficulty_levels)
+                        current_difficulty = difficulty_levels[difficulty_index]
+                    elif selected_option == 1:  # VOLUME
+                        volume_index = (volume_index + 1) % len(volume_levels)
+                        current_volume = volume_levels[volume_index]
+                elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
+                    if options[selected_option] == "Back":
+                        return
+
+        pygame.display.flip()
+        clock.tick(FPS)
 
 def main():
     global all_sprites
@@ -552,7 +542,9 @@ def main():
     all_sprites.add(player)
 
     time_scale = 1.0
-    background_scroll_y = 0
+    bg_frames = load_playbg_screen()
+    bg_y = [0] * len(bg_frames)
+    bg_speeds = [0.2, 0.4, 0.6, 0.8, 1.0, 1.2] # adjusts the speed of each layer; irl, near to our body is very fast, 
 
     while True:
         keys = pygame.key.get_pressed()
@@ -598,19 +590,14 @@ def main():
         for bullet in hit_bullets:
             player.take_dmg(10)
 
-        #MOVING BACKGROUNDDDDDDDD
-        background_scroll_y += 2 
-
-
-        if background_scroll_y >= HEIGHT:
-            background_scroll_y = 0
-
-
-        screen.blit(background_img, (0, background_scroll_y))
-        screen.blit(background_img, (0, background_scroll_y - HEIGHT))
-
-#=========================================
-
+        # Parallax
+        for i in range(len(bg_frames)):
+            bg_y[i] += bg_speeds[i] * time_scale
+            if bg_y[i] >= HEIGHT:
+                bg_y[i] = 0
+            screen.blit(bg_frames[i], (0, int(bg_y[i])))
+            screen.blit(bg_frames[i], (0, int(bg_y[i] - HEIGHT)))
+        
         all_sprites.draw(screen)
         create_HUD(screen, player)
 
