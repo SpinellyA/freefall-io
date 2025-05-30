@@ -356,6 +356,35 @@ class Enemy(pygame.sprite.Sprite):
             all_sprites.add(bullet)
             bullets.add(bullet)
 
+            # === EXPLOSION SPRITE ANIMATION ===
+            class ExplosionSprite(pygame.sprite.Sprite):
+                def __init__(self, pos):
+                    super().__init__()
+                    self.frames = [pygame.image.load(f"assets/explosion/{i}.png").convert_alpha() for i in range(1, 9)]
+                    self.index = 0
+                    self.image = self.frames[self.index]
+                    self.rect = self.image.get_rect(center=pos)
+                    self.last_update = pygame.time.get_ticks()
+                    self.frame_delay = 40  # ms per frame
+
+                def update(self):
+                    now = pygame.time.get_ticks()
+                    if now - self.last_update >= self.frame_delay:
+                        self.last_update = now
+                        self.index += 1
+                        if self.index < len(self.frames):
+                            self.image = self.frames[self.index]
+                        else:
+                            self.kill()  # Destroy the animation at the end
+
+            # === ENEMY KILL HOOK ===
+            old_enemy_kill = Enemy.kill
+            def new_enemy_kill(self):
+                explosion = ExplosionSprite(self.rect.center)
+                all_sprites.add(explosion)
+                explosions.add(explosion)
+                old_enemy_kill(self)
+            Enemy.kill = new_enemy_kill
             
 # === GLOBAL GROUPS ===
 all_sprites = pygame.sprite.Group()
@@ -613,6 +642,8 @@ def main():
             grenade.update(time_scale)
         for enemy in enemies:
             enemy.update(time_scale)
+        for explosion in explosions:
+            explosion.update()
 
         # Bullet collision
         hit_bullets = pygame.sprite.spritecollide(player, bullets, True)
@@ -641,32 +672,30 @@ def main():
             # Check all enemies for "hit probability" based on angle
             for enemy in enemies:
                 ex, ey = enemy.rect.center
-                evy = getattr(enemy, "vel_y", 0)  # Only vertical movement for enemies
+                evy = getattr(enemy, "vel_y", 0)
 
-                # Simulate grenade trajectory
                 sim_x, sim_y = player.rect.center
                 vx = GRENADE_SPEED * math.cos(angle)
                 vy = GRENADE_SPEED * math.sin(angle)
                 for t in range(0, 60, 2):
                     px = sim_x + vx * t * 0.1
                     py = sim_y + vy * t * 0.1 + 0.5 * GRAVITY * (t * 0.1)**2
-                    # Predict enemy position
                     enemy_py = ey + evy * t * 0.1
-                    # Distance between grenade and enemy
                     dist = math.hypot(px - ex, py - enemy_py)
-                    if dist < 30:  # 30 is enemy size
-                        # The closer the angle, the higher the score
+                    if dist < 30:
                         score = max(0, 1 - dist / 30)
                         if score > best_score:
                             best_score = score
                         break
 
             if best_score > 0:
-                red_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-                red_overlay.fill((255, 0, 0, int(best_score * 180)))  # Max 180 alpha
-                screen.blit(red_overlay, (0, 0))
-
-            screen.blit(vignette, (0, 0))
+                # Increase brightness overlay
+                brightness = int(best_score * 120)
+                bright_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+                bright_overlay.fill((255, 255, 255, brightness))
+                screen.blit(bright_overlay, (0, 0))
+            else:
+                screen.blit(vignette, (0, 0))
             rad = math.radians(player.aim_angle)
             x, y = player.rect.center
             vx = GRENADE_SPEED * math.cos(rad)
