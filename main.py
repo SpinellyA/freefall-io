@@ -19,7 +19,6 @@ GRENADE_SPEED = 10
 GRAVITY = 0.3
 
 
-
 # SCORES
 score = 0
 try:
@@ -89,7 +88,7 @@ class Player(pygame.sprite.Sprite):
         #self.image = pygame.Surface((40, 40))
         #self.image.fill(WHITE)
 
-        original_image = pygame.image.load("forked/assets/player/prototype_1.png").convert_alpha()
+        original_image = pygame.image.load("assets/player/prototype_1.png").convert_alpha()
         self.original_image = original_image
         self.image = self.original_image
 
@@ -122,14 +121,12 @@ class Player(pygame.sprite.Sprite):
     def dodge(self, keys):
         current_tick = pygame.time.get_ticks()
         if self.dodge_gauge > 0 and current_tick - self.last_dodged >= self.dodge_delay:
-            moved = False
-            if keys[pygame.K_a]:
-                self.vel_y -= self.dodge_step
-                moved = True
-            elif keys[pygame.K_d]:
-                self.vel_y += self.dodge_step
-                moved = True
-            if moved:
+            if keys[pygame.K_SPACE]:
+                direction = math.copysign(1, self.vel_y) if self.vel_y != 0 else 0
+                if direction != 0:
+                    self.vel_y += self.dodge_step * direction
+                else:
+                    self.vel_y += self.dodge_step
                 max_up = -self.base_y + self.rect.height // 2 + MOVEMENT_PADDING
                 max_down = HEIGHT - self.base_y - self.rect.height // 2 - MOVEMENT_PADDING
                 self.offset_y = max(min(self.offset_y, max_down), max_up)
@@ -189,7 +186,7 @@ class Player(pygame.sprite.Sprite):
             return
         self.hp -= amount
         if self.hp <= 0:
-            print("the guy is dead. we need to something")
+            gameover_screen()
             self.hp = 0
             global score, high_score
             if score > high_score:
@@ -316,7 +313,7 @@ class Enemy(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
 
         # UPDATED SPRITE ASFDJANSJDNASJDNKASNFJADNIFJANDIJGNADIJNGIJADNGFIJAND
-        original_image = pygame.image.load("forked/assets/enemy/enemy1_p1.png").convert_alpha()
+        original_image = pygame.image.load("assets/enemy/enemy1_p1.png").convert_alpha()
         self.original_image = original_image
         self.image = self.original_image
         self.rect = self.image.get_rect()
@@ -375,7 +372,7 @@ def create_HUD(screen, player):
     position_x = 20
     postion_y = 20
 
-    hud_image = pygame.image.load("forked/assets/art/hud.png").convert_alpha()
+    hud_image = pygame.image.load("assets/art/hud.png").convert_alpha()
 
     hp_ratio = player.hp / player.max_hp
     pygame.draw.rect(screen, RED, (position_x, postion_y, width, height))
@@ -394,6 +391,33 @@ def create_HUD(screen, player):
     high_score_text, high_score_rect = create_text(font_medium, WHITE, f"High Score: {high_score}", WIDTH - 150, 50)
     screen.blit(high_score_text, high_score_rect)
 
+def gameover_screen():
+    global score, high_score
+    title_text, title_rect = create_text(font_large, RED, "GAME OVER", WIDTH // 2, HEIGHT // 2 - 80)
+    score_text, score_rect = create_text(font_medium, WHITE, f"Score: {score}", WIDTH // 2, HEIGHT // 2)
+    high_score_text, high_score_rect = create_text(font_medium, WHITE, f"High Score: {high_score}", WIDTH // 2, HEIGHT // 2 + 40)
+    prompt_text, prompt_rect = create_text(font_medium, WHITE, "Press SPACE to return to title", WIDTH // 2, HEIGHT // 2 + 100)
+
+    while True:
+        screen.fill(BLACK)
+        screen.blit(title_text, title_rect)
+        screen.blit(score_text, score_rect)
+        screen.blit(high_score_text, high_score_rect)
+        screen.blit(prompt_text, prompt_rect)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    main()
+                elif event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+
+        pygame.display.flip()
+        clock.tick(FPS)
 
 def create_text(font_size, color, string, pos_x, pos_y):
     text = font_size.render(string, True, color) #2nd param for AA, can be a universal constant s.t. it is configurable and makes everything uniform
@@ -403,14 +427,17 @@ def create_text(font_size, color, string, pos_x, pos_y):
 def load_titlebg_screen():
     frames = []
     for i in range(16):
-        image = pygame.image.load(f"forked/assets/art/title_screen/{i:03}.png").convert()
+        image = pygame.image.load(f"assets/art/title_screen/{i:03}.png").convert()
         frames.append(pygame.transform.scale(image, screen.get_size()))
     return frames
+
+
+
 
 def load_playbg_screen():
     frames = []
     for i in reversed(range(6)):
-        image = pygame.image.load(f"forked/assets/art/parallax_bg/{i:03}.png").convert_alpha()
+        image = pygame.image.load(f"assets/art/parallax_bg/{i:03}.png").convert_alpha()
         frames.append(pygame.transform.scale(image, screen.get_size()))
     return frames
 
@@ -524,7 +551,21 @@ def settings_menu():
         pygame.display.flip()
         clock.tick(FPS)
 
+def kill_all_sprites():
+    global all_sprites, bullets, grenades, enemies, explosions
+    all_sprites.empty()
+    bullets.empty()
+    grenades.empty()
+    enemies.empty()
+    explosions.empty()
+
+def return_to_title():
+    global all_sprites, bullets, grenades, enemies, explosions
+    kill_all_sprites()
+    title_screen()
+
 def main():
+    return_to_title()  # Reset everything before starting the game
     global all_sprites
     player = Player()
     all_sprites.add(player)
@@ -591,6 +632,40 @@ def main():
 
         # Aiming visuals
         if player.aiming:
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            dx = mouse_x - player.rect.centerx
+            dy = mouse_y - player.rect.centery
+            angle = math.atan2(dy, dx)
+            best_score = 0.0
+
+            # Check all enemies for "hit probability" based on angle
+            for enemy in enemies:
+                ex, ey = enemy.rect.center
+                evy = getattr(enemy, "vel_y", 0)  # Only vertical movement for enemies
+
+                # Simulate grenade trajectory
+                sim_x, sim_y = player.rect.center
+                vx = GRENADE_SPEED * math.cos(angle)
+                vy = GRENADE_SPEED * math.sin(angle)
+                for t in range(0, 60, 2):
+                    px = sim_x + vx * t * 0.1
+                    py = sim_y + vy * t * 0.1 + 0.5 * GRAVITY * (t * 0.1)**2
+                    # Predict enemy position
+                    enemy_py = ey + evy * t * 0.1
+                    # Distance between grenade and enemy
+                    dist = math.hypot(px - ex, py - enemy_py)
+                    if dist < 30:  # 30 is enemy size
+                        # The closer the angle, the higher the score
+                        score = max(0, 1 - dist / 30)
+                        if score > best_score:
+                            best_score = score
+                        break
+
+            if best_score > 0:
+                red_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+                red_overlay.fill((255, 0, 0, int(best_score * 180)))  # Max 180 alpha
+                screen.blit(red_overlay, (0, 0))
+
             screen.blit(vignette, (0, 0))
             rad = math.radians(player.aim_angle)
             x, y = player.rect.center
