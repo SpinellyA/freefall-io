@@ -20,7 +20,7 @@ GRAVITY = 0.3
 
 
 
-#SCORES
+# SCORES
 score = 0
 try:
     with open("highscore.txt", "r") as file:
@@ -28,19 +28,19 @@ try:
 except:
     high_score = 0
 
-#DIFFICULTY LEVELS
+# DIFFICULTY LEVELS
 difficulty_levels = ["Easy", "Normal", "Hard"]
 difficulty_speeds = {"Easy": 0.75, "Normal": 1.0, "Hard": 1.75}
 volume_levels = ["Mute", "Low", "Normal", "High"]
 
-#SPAWN RATE
+# SPAWN RATE
 difficulty_spawn_multipliers = {
     "Easy": 0.5,
     "Normal": 1.0,
     "Hard": 1.25
 }
 
-#CURRENT LEVELS
+# CURRENT LEVELS
 current_difficulty = "Normal"
 current_volume = "Normal"
 
@@ -57,7 +57,7 @@ SKY_COLOR = (135, 206, 235)
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
-#ORIGINAL SPAWN INTERVAL pygame.time.set_timer(pygame.USEREVENT, ENEMY_SPAWN_INTERVAL)
+# ORIGINAL SPAWN INTERVAL pygame.time.set_timer(pygame.USEREVENT, ENEMY_SPAWN_INTERVAL)
 adjusted_spawn_interval = int(ENEMY_SPAWN_INTERVAL / difficulty_spawn_multipliers[current_difficulty])
 pygame.time.set_timer(pygame.USEREVENT, adjusted_spawn_interval)
 
@@ -89,16 +89,9 @@ class Player(pygame.sprite.Sprite):
         #self.image = pygame.Surface((40, 40))
         #self.image.fill(WHITE)
 
-        #NEW AHSDBHABSDHBASHFB
-        original_image = pygame.image.load("forked/assets/player/mainchar.png").convert_alpha()
-        # MAXIMUM SIZE OF THE CHARACTER
-        max_size = 100
-        scale_ratio = min(max_size / original_image.get_width(), max_size / original_image.get_height())
-        new_width = int(original_image.get_width() * scale_ratio)
-        new_height = int(original_image.get_height() * scale_ratio)
-        self.original_image = pygame.transform.smoothscale(original_image, (new_width, new_height))
+        original_image = pygame.image.load("forked/assets/player/prototype_1.png").convert_alpha()
+        self.original_image = original_image
         self.image = self.original_image
-
 
         self.base_y = HEIGHT // 2
         self.offset_y = 0
@@ -168,7 +161,6 @@ class Player(pygame.sprite.Sprite):
         max_up = -self.base_y + self.rect.height // 2 + MOVEMENT_PADDING
         max_down = HEIGHT - self.base_y - self.rect.height // 2 - MOVEMENT_PADDING
         self.offset_y = max(min(self.offset_y, max_down), max_up)
-
 
         #CENTER OF MAIN CHARACTER
         #self.rect.center = (WIDTH // 2, self.base_y + self.offset_y)
@@ -323,13 +315,9 @@ class Enemy(pygame.sprite.Sprite):
         self.image.fill(RED)
         self.rect = self.image.get_rect()
 
-        #UPDATED SPRITE ASFDJANSJDNASJDNKASNFJADNIFJANDIJGNADIJNGIJADNGFIJAND
-        original_image = pygame.image.load("forked/assets/enemy/enemy1.png").convert_alpha()
-        max_size = 80  # smaller than player max_size 100
-        scale_ratio = min(max_size / original_image.get_width(), max_size / original_image.get_height())
-        new_width = int(original_image.get_width() * scale_ratio)
-        new_height = int(original_image.get_height() * scale_ratio)
-        self.original_image = pygame.transform.smoothscale(original_image, (new_width, new_height))
+        # UPDATED SPRITE ASFDJANSJDNASJDNKASNFJADNIFJANDIJGNADIJNGIJADNGFIJAND
+        original_image = pygame.image.load("forked/assets/enemy/enemy1_p1.png").convert_alpha()
+        self.original_image = original_image
         self.image = self.original_image
         self.rect = self.image.get_rect()
 
@@ -592,11 +580,11 @@ def main():
 
         # Parallax
         for i in range(len(bg_frames)):
-            bg_y[i] += bg_speeds[i] * time_scale
-            if bg_y[i] >= HEIGHT:
+            bg_y[i] -= bg_speeds[i] * time_scale
+            if bg_y[i] <= -HEIGHT:
                 bg_y[i] = 0
             screen.blit(bg_frames[i], (0, int(bg_y[i])))
-            screen.blit(bg_frames[i], (0, int(bg_y[i] - HEIGHT)))
+            screen.blit(bg_frames[i], (0, int(bg_y[i] + HEIGHT)))
         
         all_sprites.draw(screen)
         create_HUD(screen, player)
